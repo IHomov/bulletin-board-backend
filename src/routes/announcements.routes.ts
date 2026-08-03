@@ -10,7 +10,7 @@ import {
   updateAnnouncementSchema,
   queryAnnouncementSchema,
   paramsIdSchema,
-} from '../validators/announcements.validator';
+  } from '../validators/announcements.validator';
 import {
   getAnnouncements,
   getAnnouncementById,
@@ -32,7 +32,13 @@ router.get(
   validateParams(paramsIdSchema),
   getAnnouncementById
 );
-
+router.put(
+  '/:id',
+  authenticate,
+  validateParams(paramsIdSchema),
+  validateBody(updateAnnouncementSchema),
+  updateAnnouncement
+);
 router.post(
   '/',
   authenticate,
