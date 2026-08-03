@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// 🔽 ПІДКТЮЧЕННЯ РОУТІВ 🔽
+
 app.use('/auth', authRoutes);
 app.use('/announcements', announcementRoutes);
 

@@ -1,4 +1,16 @@
 import { Router } from 'express';
+import { authenticate } from '../middleware/authenticate';
+import {
+  validateBody,
+  validateQuery,
+  validateParams,
+} from '../middleware/validate';
+import {
+  createAnnouncementSchema,
+  updateAnnouncementSchema,
+  queryAnnouncementSchema,
+  paramsIdSchema,
+} from '../validators/announcements.validator';
 import {
   getAnnouncements,
   getAnnouncementById,
@@ -6,27 +18,28 @@ import {
   updateAnnouncement,
   deleteAnnouncement,
 } from '../controllers/announcements.controller';
-import { validateBody, validateQuery, validateParams } from '../middleware/validate';
-import { authenticate } from '../middleware/authenticate';
-import {
-  createAnnouncementSchema,
-  updateAnnouncementSchema,
-  queryAnnouncementSchema,
-  paramsIdSchema,
-} from '../validators/announcements.validator';
 
 const router = Router();
 
-// GET /announcements (Публічний, пагінація/пошук)
-router.get('/', validateQuery(queryAnnouncementSchema), getAnnouncements);
+router.get(
+  '/',
+  validateQuery(queryAnnouncementSchema),
+  getAnnouncements
+);
 
-// GET /announcements/:id (Публічний)
-router.get('/:id', validateParams(paramsIdSchema), getAnnouncementById);
+router.get(
+  '/:id',
+  validateParams(paramsIdSchema),
+  getAnnouncementById
+);
 
-// POST /announcements (Захищений)
-router.post('/', authenticate, validateBody(createAnnouncementSchema), createAnnouncement);
+router.post(
+  '/',
+  authenticate,
+  validateBody(createAnnouncementSchema),
+  createAnnouncement
+);
 
-// PATCH /announcements/:id (Захищений)
 router.patch(
   '/:id',
   authenticate,
@@ -35,7 +48,11 @@ router.patch(
   updateAnnouncement
 );
 
-// DELETE /announcements/:id (Захищений)
-router.delete('/:id', authenticate, validateParams(paramsIdSchema), deleteAnnouncement);
+router.delete(
+  '/:id',
+  authenticate,
+  validateParams(paramsIdSchema),
+  deleteAnnouncement
+);
 
 export default router;

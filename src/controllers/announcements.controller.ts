@@ -7,10 +7,23 @@ const userSelect = { id: true, username: true, email: true, name: true };
 export const getAnnouncements = async (req: Request, res: Response) => {
   const page = Number(req.query.page) || 1;
   const search = req.query.search as string | undefined;
+  const category = req.query.category as string | undefined; // 👈 1. Отримуємо категорію
   const sort = (req.query.sort as string) === 'oldest' ? 'asc' : 'desc';
-  const perPage = 10;
+  const perPage = Number(req.query.limit) || Number(req.query.perPage) || 10; // 👈 Кастомний limit/perPage
 
-  const where = search ? { title: { contains: search } } : {};
+  // 👈 2. Динамічно збираємо об'єкт умов фільтрації
+  const where: any = {};
+
+  if (category) {
+    where.category = category;
+  }
+
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+    ];
+  }
 
   const total = await prisma.announcement.count({ where });
   const totalPages = Math.ceil(total / perPage);

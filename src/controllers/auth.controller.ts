@@ -59,7 +59,7 @@ export const login = async (req: Request, res: Response) => {
 
     const tokens = generateTokens(user.id, user.username);
 
-    // Токен-ротація за ТЗ: замінюємо старий рефреш-токен на новий
+    
     await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
     await prisma.refreshToken.create({
       data: { token: tokens.refreshToken, userId: user.id },

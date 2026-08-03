@@ -7,7 +7,11 @@ export const createAnnouncementSchema = z.object({
   category: z.string().min(2, 'Category is required'),
 });
 
-export const updateAnnouncementSchema = createAnnouncementSchema.partial();
+export const updateAnnouncementSchema = createAnnouncementSchema
+  .partial()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided for update',
+  });
 
 export const queryAnnouncementSchema = z.object({
   page: z.string().optional(),
