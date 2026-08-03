@@ -1,4 +1,6 @@
+import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
+extendZodWithOpenApi(z);
 
 export const createAnnouncementSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long'),

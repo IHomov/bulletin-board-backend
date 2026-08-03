@@ -15,6 +15,8 @@ export const validateQuery = (schema: ZodType) => (req: Request, res: Response, 
   if (!result.success) {
     return res.status(400).json({ errors: result.error.flatten() });
   }
+ 
+  req.query = result.data as any;
   next();
 };
 
@@ -23,5 +25,7 @@ export const validateParams = (schema: ZodType) => (req: Request, res: Response,
   if (!result.success) {
     return res.status(400).json({ errors: result.error.flatten() });
   }
+ 
+  req.params = result.data as any;
   next();
 };

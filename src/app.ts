@@ -1,4 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
+import swaggerUi from 'swagger-ui-express';
+import { generateOpenApiDocument } from './openapi';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
@@ -12,6 +14,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+const openApiDocument = generateOpenApiDocument();
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
 app.use('/auth', authRoutes);
 app.use('/announcements', announcementRoutes);
