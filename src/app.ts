@@ -14,8 +14,10 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const openApiDocument = generateOpenApiDocument();
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+
+const swaggerDocument = generateOpenApiDocument();
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 
 app.use('/auth', authRoutes);
 app.use('/announcements', announcementRoutes);
