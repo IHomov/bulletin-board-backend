@@ -2,7 +2,8 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
-import announcementRoutes from './routes/announcement.routes';
+import announcementRoutes from './routes/announcements.routes';
+
 dotenv.config();
 
 const app: Application = express();
@@ -10,6 +11,10 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// 🔽 ПІДКТЮЧЕННЯ РОУТІВ 🔽
+app.use('/auth', authRoutes);
+app.use('/announcements', announcementRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is running properly!' });

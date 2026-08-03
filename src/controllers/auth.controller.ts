@@ -13,62 +13,75 @@ const generateTokens = (userId: number, username: string) => {
 };
 
 export const register = async (req: Request, res: Response) => {
-  const { username, email, password, name } = req.body;
+  try {
+    const { username, email, password, name } = req.body;
 
-  const existingUser = await prisma.user.findFirst({
-    where: { OR: [{ username }, { email }] },
-  });
+    const existingUser = await prisma.user.findFirst({
+      where: { OR: [{ username }, { email }] },
+    });
 
-  if (existingUser) {
-    return res.status(409).json({ message: 'Username or email already taken' });
+    if (existingUser) {
+      return res.status(409).json({ message: 'Username or email already taken' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: { username, email, password: hashedPassword, name },
+    });
+
+    const tokens = generateTokens(user.id, user.username);
+
+    await prisma.refreshToken.create({
+      data: { token: tokens.refreshToken, userId: user.id },
+    });
+
+    const { password: _, ...userWithoutPassword } = user;
+    return res.status(201).json({ user: userWithoutPassword, ...tokens });
+  } catch (error) {
+    return res.status(500).json({ message: 'Internal server error' });
   }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  const user = await prisma.user.create({
-    data: { username, email, password: hashedPassword, name },
-  });
-
-  const tokens = generateTokens(user.id, user.username);
-
-  await prisma.refreshToken.create({
-    data: { token: tokens.refreshToken, userId: user.id },
-  });
-
-  const { password: _, ...userWithoutPassword } = user;
-  return res.status(201).json({ user: userWithoutPassword, ...tokens });
 };
 
 export const login = async (req: Request, res: Response) => {
-  const { username, password } = req.body;
+  try {
+    const { username, password } = req.body;
 
-  const user = await prisma.user.findUnique({ where: { username } });
-  if (!user) {
-    return res.status(401).json({ message: 'Invalid credentials' });
+    const user = await prisma.user.findUnique({ where: { username } });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const tokens = generateTokens(user.id, user.username);
+
+    // Токен-ротація за ТЗ: замінюємо старий рефреш-токен на новий
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    await prisma.refreshToken.create({
+      data: { token: tokens.refreshToken, userId: user.id },
+    });
+
+    const { password: _, ...userWithoutPassword } = user;
+    return res.status(200).json({ user: userWithoutPassword, ...tokens });
+  } catch (error) {
+    return res.status(500).json({ message: 'Internal server error' });
   }
-
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) {
-    return res.status(401).json({ message: 'Invalid credentials' });
-  }
-
-  const tokens = generateTokens(user.id, user.username);
-
-  await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
-  await prisma.refreshToken.create({
-    data: { token: tokens.refreshToken, userId: user.id },
-  });
-
-  const { password: _, ...userWithoutPassword } = user;
-  return res.status(200).json({ user: userWithoutPassword, ...tokens });
 };
 
 export const refresh = async (req: Request, res: Response) => {
   const { refreshToken } = req.body;
 
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'Invalid refresh token' });
+  }
+
   try {
     const payload = jwt.verify(refreshToken, JWT_SECRET) as unknown as AuthPayload;
-    
+
     const tokenInDb = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
     if (!tokenInDb) {
       return res.status(401).json({ message: 'Invalid refresh token' });
@@ -88,19 +101,19 @@ export const refresh = async (req: Request, res: Response) => {
 };
 
 export const logout = async (req: Request, res: Response) => {
-  const authUser = (req as Request & { user?: AuthPayload }).user;
-  if (!authUser) return res.status(401).json({ message: 'Unauthorized' });
+  const userId = req.user?.sub;
+  if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-  await prisma.refreshToken.deleteMany({ where: { userId: authUser.sub } });
+  await prisma.refreshToken.deleteMany({ where: { userId } });
   return res.status(204).end();
 };
 
 export const getMe = async (req: Request, res: Response) => {
-  const authUser = (req as Request & { user?: AuthPayload }).user;
-  if (!authUser) return res.status(401).json({ message: 'Unauthorized' });
+  const userId = req.user?.sub;
+  if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
   const dbUser = await prisma.user.findUnique({
-    where: { id: authUser.sub },
+    where: { id: userId },
     select: { id: true, username: true, email: true, name: true, createdAt: true },
   });
 

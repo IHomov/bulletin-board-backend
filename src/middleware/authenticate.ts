@@ -6,8 +6,18 @@ export interface AuthPayload {
   username: string;
 }
 
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthPayload;
+    }
+  }
+}
+
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
@@ -16,7 +26,10 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as unknown as AuthPayload;
-    (req as Request & { user?: AuthPayload }).user = decoded;
+    
+    
+    req.user = decoded; 
+    
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Invalid or expired access token' });
