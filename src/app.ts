@@ -2,18 +2,37 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { generateOpenApiDocument } from './openapi';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
+import pinoHttp from 'pino-http'; 
+import logger from './logger';
 import authRoutes from './routes/auth.routes';
 import announcementRoutes from './routes/announcements.routes';
+
 
 dotenv.config();
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
+app.use(helmet());
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if( !origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
 
+  })
+);
+
+
+app.use(pinoHttp({ logger }));
+app.use(express.json());
 
 const swaggerDocument = generateOpenApiDocument();
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
@@ -27,7 +46,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
+  logger.error(err.stack || err.message);
   res.status(500).json({ error: err.message || 'Internal Server Error' });
 });
 
