@@ -1,17 +1,18 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../prisma/client';
 import { AuthPayload } from '../middleware/authenticate';
+import cloudinary from '../middleware/upload';
+import fs from 'fs';
 
 const userSelect = { id: true, username: true, email: true, name: true };
 
 export const getAnnouncements = async (req: Request, res: Response) => {
   const page = Number(req.query.page) || 1;
   const search = req.query.search as string | undefined;
-  const category = req.query.category as string | undefined; // 👈 1. Отримуємо категорію
+  const category = req.query.category as string | undefined;
   const sort = (req.query.sort as string) === 'oldest' ? 'asc' : 'desc';
-  const perPage = Number(req.query.limit) || Number(req.query.perPage) || 10; // 👈 Кастомний limit/perPage
+  const perPage = Number(req.query.limit) || Number(req.query.perPage) || 10;
 
-  // 👈 2. Динамічно збираємо об'єкт умов фільтрації
   const where: any = {};
 
   if (category) {
@@ -61,14 +62,39 @@ export const createAnnouncement = async (req: Request, res: Response) => {
   const authUser = (req as Request & { user?: AuthPayload }).user;
   if (!authUser) return res.status(401).json({ message: 'Unauthorized' });
 
-  const { title, description, price, category } = req.body;
+  try {
+    let imageUrl: string | undefined;
 
-  const announcement = await prisma.announcement.create({
-    data: { title, description, price, category, userId: authUser.sub },
-    include: { user: { select: userSelect } },
-  });
 
-  return res.status(201).json(announcement);
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'announcements',
+      });
+      imageUrl = result.secure_url;
+      fs.unlinkSync(req.file.path); 
+    }
+
+    const { title, description, price, category } = req.body;
+
+    const announcement = await prisma.announcement.create({
+      data: {
+        title,
+        description,
+        price: Number(price),
+        category,
+        imageUrl,
+        userId: authUser.sub,
+      },
+      include: { user: { select: userSelect } },
+    });
+
+    return res.status(201).json(announcement);
+  } catch (error: any) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    return res.status(500).json({ message: error.message });
+  }
 };
 
 export const updateAnnouncement = async (req: Request, res: Response) => {
@@ -85,13 +111,34 @@ export const updateAnnouncement = async (req: Request, res: Response) => {
     return res.status(403).json({ message: 'Access denied' });
   }
 
-  const updated = await prisma.announcement.update({
-    where: { id },
-    data: req.body,
-    include: { user: { select: userSelect } },
-  });
+  try {
+    let imageUrl = announcement.imageUrl;
 
-  return res.status(200).json(updated);
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'announcements',
+      });
+      imageUrl = result.secure_url;
+      fs.unlinkSync(req.file.path);
+    }
+
+    const updated = await prisma.announcement.update({
+      where: { id },
+      data: {
+        ...req.body,
+        price: req.body.price ? Number(req.body.price) : undefined,
+        imageUrl,
+      },
+      include: { user: { select: userSelect } },
+    });
+
+    return res.status(200).json(updated);
+  } catch (error: any) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    return res.status(500).json({ message: error.message });
+  }
 };
 
 export const deleteAnnouncement = async (req: Request, res: Response) => {
@@ -99,7 +146,7 @@ export const deleteAnnouncement = async (req: Request, res: Response) => {
   const authUser = (req as Request & { user?: AuthPayload }).user;
   if (!authUser) return res.status(401).json({ message: 'Unauthorized' });
 
-  const announcement = await prisma.announcement.findUnique({ where: { id } });
+  const announcement: any = await prisma.announcement.findUnique({ where: { id } });
   if (!announcement) {
     return res.status(404).json({ message: 'Announcement not found' });
   }
