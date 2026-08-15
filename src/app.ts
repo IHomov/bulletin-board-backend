@@ -53,5 +53,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
-
+app.get('/', (req, res) => {
+  res.send('Welcome to Bulletin Board API!');
+});
 export default app;
